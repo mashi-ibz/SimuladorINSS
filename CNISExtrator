@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Extrator de Extrato CNIS → Planilha</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2b2e;
+    --paper:#f5f3ee;
+    --line:#c7c2b4;
+    --accent:#2f5d4f;
+    --accent-soft:#e4ede9;
+    --warn:#8a5a2b;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family: Georgia, 'Times New Roman', serif;
+    line-height:1.5;
+    padding:32px 20px 80px;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+  header{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:28px;}
+  header .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:6px;
+  }
+  h1{font-size:28px;margin:0 0 6px;font-weight:600;}
+  header p{margin:0;color:#4a4a44;font-size:15px;max-width:640px;}
+
+  .panel{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:24px;
+    margin-bottom:20px;
+  }
+  .panel h2{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 14px;
+  }
+
+  #dropzone{
+    border:2px dashed var(--line);
+    border-radius:2px;
+    padding:36px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  #dropzone:hover, #dropzone.drag{
+    border-color:var(--accent);
+    background:var(--accent-soft);
+  }
+  #dropzone .big{font-size:16px;margin-bottom:6px;}
+  #dropzone .small{font-family:var(--mono);font-size:12px;color:#6b6b63;}
+  #fileInput{display:none;}
+
+  .filename{
+    font-family:var(--mono);
+    font-size:13px;
+    margin-top:10px;
+    color:var(--ink);
+  }
+
+  button.primary{
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    padding:11px 22px;
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:.03em;
+    border-radius:2px;
+    cursor:pointer;
+    margin-top:16px;
+  }
+  button.primary:disabled{background:#a9a89f;cursor:not-allowed;}
+  button.primary:hover:not(:disabled){background:var(--accent);}
+
+  button.secondary{
+    background:transparent;
+    color:var(--ink);
+    border:1px solid var(--ink);
+    padding:9px 18px;
+    font-family:var(--mono);
+    font-size:12px;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  button.secondary:hover{background:var(--accent-soft);border-color:var(--accent);}
+
+  #status{
+    font-family:var(--mono);
+    font-size:13px;
+    margin-top:14px;
+    white-space:pre-line;
+    color:#4a4a44;
+  }
+  #status.err{color:#a13a2f;}
+
+  .progress-bar{
+    height:4px;
+    background:var(--line);
+    border-radius:2px;
+    overflow:hidden;
+    margin-top:12px;
+    display:none;
+  }
+  .progress-bar .fill{
+    height:100%;
+    background:var(--accent);
+    width:0%;
+    transition:width .2s;
+  }
+
+  .summary-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:16px;
+    margin-bottom:18px;
+  }
+  .stat{border-left:2px solid var(--accent);padding-left:12px;}
+  .stat .num{font-size:22px;font-weight:600;}
+  .stat .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b6b63;}
+
+  .table-scroll{
+    max-height:520px;
+    overflow:auto;
+    border:1px solid var(--line);
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+    font-family:var(--mono);
+  }
+  thead th{
+    position:sticky;top:0;
+    background:var(--ink);
+    color:#fff;
+    text-align:left;
+    padding:9px 10px;
+    font-weight:500;
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+  }
+  thead th:hover{background:var(--accent);}
+  tbody td{
+    padding:6px 10px;
+    border-bottom:1px solid #ece9e1;
+    white-space:nowrap;
+  }
+  tbody tr:nth-child(even){background:#faf9f6;}
+  tbody td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  tbody td.ind{color:var(--warn);}
+
+  details{margin-top:16px;}
+  summary{
+    cursor:pointer;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--accent);
+    letter-spacing:.03em;
+  }
+  #rawText{
+    max-height:300px;
+    overflow:auto;
+    background:var(--ink);
+    color:#d8e6df;
+    font-family:var(--mono);
+    font-size:11px;
+    padding:14px;
+    margin-top:10px;
+    white-space:pre-wrap;
+    border-radius:2px;
+  }
+
+  .note{
+    font-family:var(--mono);
+    font-size:12px;
+    color:#6b6b63;
+    border-top:1px dashed var(--line);
+    padding-top:14px;
+    margin-top:18px;
+  }
+
+  .actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px;}
+
+  footer{
+    margin-top:40px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:#8a877c;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">CNIS · Extrato Previdenciário</div>
+    <h1>Extrator de Extrato CNIS → Planilha</h1>
+    <p>Envie o PDF do extrato CNIS (meu.inss.gov.br). O processamento acontece inteiramente no seu navegador — o arquivo não é enviado a nenhum servidor. O resultado é uma planilha com Código Emp., Competência, Remuneração e Indicadores.</p>
+  </header>
+
+  <div class="panel">
+    <h2>01 · Arquivo</h2>
+    <div id="dropzone">
+      <div class="big">Arraste o PDF aqui ou clique para selecionar</div>
+      <div class="small">extrato-previdenciario.pdf</div>
+      <input type="file" id="fileInput" accept="application/pdf">
+    </div>
+    <div class="filename" id="filename"></div>
+    <button class="primary" id="processBtn" disabled>Processar PDF</button>
+    <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
+    <div id="status"></div>
+  </div>
+
+  <div class="panel" id="resultsPanel" style="display:none;">
+    <h2>02 · Resultado</h2>
+
+    <div class="summary-grid" id="summaryGrid"></div>
+
+    <div class="actions">
+      <button class="primary" id="downloadBtn">Baixar planilha (.xlsx)</button>
+      <button class="secondary" id="downloadCsvBtn">Baixar .csv</button>
+    </div>
+
+    <div class="table-scroll" style="margin-top:20px;">
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th data-key="codigoEmp">Código Emp. ▾</th>
+            <th data-key="competencia">Competência ▾</th>
+            <th data-key="remuneracaoNum">Remuneração ▾</th>
+            <th data-key="indicadores">Indicadores ▾</th>
+            <th data-key="pagina">Pág. ▾</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>Nota de confiabilidade:</strong> a extração reconstrói a posição real de cada texto no PDF (coordenadas x/y), o que resolve o embaralhamento típico da camada de texto desses extratos. Ainda assim, quando o campo "Indicadores" quebra em duas linhas dentro da célula original, o texto pode aparecer truncado — confira o PDF original quando o indicador for relevante para você. Recomendo conferir o total de linhas e a quantidade de vínculos contra o extrato antes de usar a planilha para qualquer decisão.
+    </div>
+
+    <details>
+      <summary>Ver texto reconstruído linha a linha (depuração)</summary>
+      <div id="rawText"></div>
+    </details>
+  </div>
+
+  <footer>Processado localmente no navegador · nenhum dado sai do seu dispositivo</footer>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const filenameEl = document.getElementById('filename');
+const processBtn = document.getElementById('processBtn');
+const statusEl = document.getElementById('status');
+const progressBar = document.getElementById('progressBar');
+const progressFill = document.getElementById('progressFill');
+const resultsPanel = document.getElementById('resultsPanel');
+const summaryGrid = document.getElementById('summaryGrid');
+const resultBody = document.getElementById('resultBody');
+const rawTextEl = document.getElementById('rawText');
+
+let currentFile = null;
+let currentRows = [];
+let sortState = { key: null, dir: 1 };
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) setFile(e.target.files[0]);
+});
+
+function setFile(file) {
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    statusEl.textContent = 'Envie um arquivo PDF.';
+    statusEl.className = 'err';
+    return;
+  }
+  currentFile = file;
+  filenameEl.textContent = '✓ ' + file.name;
+  processBtn.disabled = false;
+  statusEl.textContent = '';
+  statusEl.className = '';
+}
+
+processBtn.addEventListener('click', async () => {
+  if (!currentFile) return;
+  processBtn.disabled = true;
+  statusEl.className = '';
+  statusEl.textContent = 'Lendo PDF...';
+  progressBar.style.display = 'block';
+  progressFill.style.width = '5%';
+  resultsPanel.style.display = 'none';
+
+  try {
+    const buffer = await currentFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const allRows = [];
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+
+      // O extrato do meu.inss.gov.br é gerado com a página rotacionada;
+      // é preciso aplicar o viewport para obter as coordenadas visuais reais.
+      const viewport = page.getViewport({ scale: 1 });
+      const items = content.items
+        .map(it => {
+          const m = pdfjsLib.Util.transform(viewport.transform, it.transform);
+          return { str: it.str, x: m[4], y: m[5], width: it.width || 0 };
+        })
+        .filter(it => it.str.trim().length > 0);
+
+      // Ordena por posição visual real: topo->baixo, esquerda->direita.
+      // Em espaço de dispositivo (pós-viewport), y cresce para baixo.
+      items.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+
+      const Y_TOL = 2.6;
+      const rows = [];
+      let currentRow = [];
+      let currentY = null;
+
+      for (const it of items) {
+        if (currentY === null || Math.abs(it.y - currentY) <= Y_TOL) {
+          currentRow.push(it);
+          if (currentY === null) currentY = it.y;
+        } else {
+          rows.push(currentRow);
+          currentRow = [it];
+          currentY = it.y;
+        }
+      }
+      if (currentRow.length) rows.push(currentRow);
+
+      for (const row of rows) {
+        row.sort((a, b) => a.x - b.x);
+        let text = '';
+        let lastEnd = null;
+        for (const it of row) {
+          if (lastEnd !== null) {
+            const gap = it.x - lastEnd;
+            text += gap > 1.5 ? ' ' : '';
+          }
+          text += it.str;
+          lastEnd = it.x + it.width;
+        }
+        text = text.trim();
+        if (text) allRows.push({ page: p, text });
+      }
+
+      progressFill.style.width = Math.round(10 + (p / pdf.numPages) * 60) + '%';
+      statusEl.textContent = `Lendo página ${p} de ${pdf.numPages}...`;
+    }
+
+    statusEl.textContent = 'Interpretando tabelas...';
+    progressFill.style.width = '80%';
+
+    const mergedRows = mergeWrappedIndicators(allRows);
+    const results = parseRows(mergedRows);
+
+    progressFill.style.width = '100%';
+    statusEl.textContent = `Concluído: ${results.length} linhas de remuneração/contribuição extraídas de ${pdf.numPages} páginas.`;
+
+    currentRows = results;
+    renderResults(results);
+    rawTextEl.textContent = allRows.map(r => `[p.${r.page}] ${r.text}`).join('\n');
+
+    resultsPanel.style.display = 'block';
+  } catch (err) {
+    console.error(err);
+    statusEl.className = 'err';
+    statusEl.textContent = 'Erro ao processar o PDF: ' + err.message;
+  } finally {
+    processBtn.disabled = false;
+    setTimeout(() => { progressBar.style.display = 'none'; progressFill.style.width = '0%'; }, 800);
+  }
+});
+
+function mergeWrappedIndicators(allRows) {
+  // Quando o texto de "Indicadores" de uma célula quebra em duas linhas
+  // (ex.: "PREM-FVIN, IREM-" numa linha e "SEM-DIAS-INTERM" na linha seguinte,
+  // com a linha de Competência/Remuneração entre elas), reassocia o texto
+  // completo do indicador à linha numérica correspondente.
+  const isFragment = t => /^[A-ZÀ-Ü,\s\-]+$/.test(t) && t.includes('-') && !/\d/.test(t);
+  const hasCompetencia = t => /\d{2}\/\d{4}/.test(t);
+
+  const isFrag = allRows.map(r => isFragment(r.text));
+  const hasComp = allRows.map(r => hasCompetencia(r.text));
+  const consumed = new Array(allRows.length).fill(false);
+  const extraFor = new Array(allRows.length).fill('');
+
+  for (let i = 0; i < allRows.length; i++) {
+    if (!hasComp[i]) continue;
+    if (i - 1 >= 0 && isFrag[i - 1] && !consumed[i - 1] && allRows[i - 1].page === allRows[i].page) {
+      extraFor[i] += allRows[i - 1].text;
+      consumed[i - 1] = true;
+    }
+    if (i + 1 < allRows.length && isFrag[i + 1] && !consumed[i + 1] && allRows[i + 1].page === allRows[i].page) {
+      extraFor[i] += allRows[i + 1].text;
+      consumed[i + 1] = true;
+    }
+  }
+
+  const merged = [];
+  for (let i = 0; i < allRows.length; i++) {
+    if (consumed[i]) continue;
+    let text = allRows[i].text;
+    if (extraFor[i]) text = text + ' ' + extraFor[i];
+    merged.push({ page: allRows[i].page, text });
+  }
+  return merged;
+}
+
+function parseNumBR(str) {
+  if (!str) return null;
+  return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+}
+
+function parseRows(allRows) {
+  const HEADER_RE = /^(\d{1,3})\s+(\d{3}\.\d{5}\.\d{2}-\d)\s+(\S+)/;
+  const INDICADORES_LINE_RE = /^Indicadores:\s*(.+)$/i;
+
+  // Competência + Remuneração (+ Indicadores opcionais) — tabela "Remunerações"
+  const PAIR_RE = /(\d{2}\/\d{4})\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s+([A-ZÀ-Ü][A-Za-zÀ-ÿ\-]*(?:,\s*[A-ZÀ-Ü][A-Za-zÀ-ÿ\-]*)*))?/g;
+
+  // Competência + Data Pgto. + Contribuição + Salário Contribuição (+ Indicadores) — tabela "Contribuições"
+  const CONTRIB_RE = /(\d{2}\/\d{4})\s+\d{2}\/\d{2}\/\d{4}\s+\d{1,3}(?:\.\d{3})*,\d{2}\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?:\s+([A-ZÀ-Ü][A-Za-zÀ-ÿ\-]*(?:,\s*[A-ZÀ-Ü][A-Za-zÀ-ÿ\-]*)*))?/g;
+
+  let currentCodigo = '';
+  const out = [];
+
+  for (const row of allRows) {
+    const t = row.text;
+
+    const headerMatch = t.match(HEADER_RE);
+    if (headerMatch) {
+      currentCodigo = headerMatch[3];
+      continue;
+    }
+
+    const indMatch = t.match(INDICADORES_LINE_RE);
+    if (indMatch) {
+      out.push({
+        codigoEmp: currentCodigo,
+        competencia: '',
+        remuneracaoNum: null,
+        remuneracaoStr: '',
+        indicadores: '[vínculo] ' + indMatch[1].trim(),
+        pagina: row.page
+      });
+      continue;
+    }
+
+    let matchedContrib = false;
+    CONTRIB_RE.lastIndex = 0;
+    let cm;
+    while ((cm = CONTRIB_RE.exec(t)) !== null) {
+      matchedContrib = true;
+      out.push({
+        codigoEmp: currentCodigo,
+        competencia: cm[1],
+        remuneracaoNum: parseNumBR(cm[2]),
+        remuneracaoStr: cm[2],
+        indicadores: cm[3] || '',
+        pagina: row.page
+      });
+    }
+    if (matchedContrib) continue;
+
+    PAIR_RE.lastIndex = 0;
+    let pm;
+    while ((pm = PAIR_RE.exec(t)) !== null) {
+      out.push({
+        codigoEmp: currentCodigo,
+        competencia: pm[1],
+        remuneracaoNum: parseNumBR(pm[2]),
+        remuneracaoStr: pm[2],
+        indicadores: pm[3] || '',
+        pagina: row.page
+      });
+    }
+  }
+
+  return out;
+}
+
+function renderResults(rows) {
+  const withComp = rows.filter(r => r.competencia);
+  const uniqueCodigos = new Set(rows.map(r => r.codigoEmp).filter(Boolean));
+  const total = withComp.reduce((s, r) => s + (r.remuneracaoNum || 0), 0);
+  const competencias = withComp.map(r => r.competencia).sort();
+
+  summaryGrid.innerHTML = `
+    <div class="stat"><div class="num">${withComp.length}</div><div class="label">Competências</div></div>
+    <div class="stat"><div class="num">${uniqueCodigos.size}</div><div class="label">Vínculos/Códigos</div></div>
+    <div class="stat"><div class="num">${competencias[0] || '—'}</div><div class="label">Primeira competência</div></div>
+    <div class="stat"><div class="num">${competencias[competencias.length - 1] || '—'}</div><div class="label">Última competência</div></div>
+  `;
+
+  drawTable(rows);
+}
+
+function drawTable(rows) {
+  resultBody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${escapeHtml(r.codigoEmp)}</td>
+      <td>${escapeHtml(r.competencia)}</td>
+      <td class="num">${r.remuneracaoNum !== null ? r.remuneracaoNum.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''}</td>
+      <td class="ind">${escapeHtml(r.indicadores)}</td>
+      <td class="num">${r.pagina}</td>
+    </tr>
+  `).join('');
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+document.querySelectorAll('#resultTable thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    sortState.dir = (sortState.key === key) ? -sortState.dir : 1;
+    sortState.key = key;
+    const sorted = [...currentRows].sort((a, b) => {
+      let av = a[key], bv = b[key];
+      if (av === null || av === undefined) av = '';
+      if (bv === null || bv === undefined) bv = '';
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * sortState.dir;
+      return String(av).localeCompare(String(bv), 'pt-BR') * sortState.dir;
+    });
+    drawTable(sorted);
+  });
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  if (!currentRows.length) return;
+  const data = currentRows.map(r => ({
+    'Código Emp.': r.codigoEmp,
+    'Competência': r.competencia,
+    'Remuneração': r.remuneracaoNum !== null ? r.remuneracaoNum : '',
+    'Indicadores': r.indicadores,
+    'Página PDF': r.pagina
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 16 }, { wch: 40 }, { wch: 10 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'CNIS');
+  XLSX.writeFile(wb, 'extrato_cnis.xlsx');
+});
+
+document.getElementById('downloadCsvBtn').addEventListener('click', () => {
+  if (!currentRows.length) return;
+  const header = ['Código Emp.', 'Competência', 'Remuneração', 'Indicadores', 'Página PDF'];
+  const lines = [header.join(';')];
+  for (const r of currentRows) {
+    const rem = r.remuneracaoNum !== null ? r.remuneracaoNum.toFixed(2).replace('.', ',') : '';
+    lines.push([r.codigoEmp, r.competencia, rem, r.indicadores, r.pagina]
+      .map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+  }
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'extrato_cnis.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
