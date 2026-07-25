@@ -84,6 +84,16 @@
   <p class="subtitle">Preencha os dados obrigatórios e/ou envie seu extrato do Meu INSS. O painel de resultados recalcula automaticamente a cada alteração — não existe "cálculo salvo": qualquer ajuste invalida e refaz todas as projeções na hora.</p>
 
   <div class="status-bar" id="statusBar"><span><span class="dot"></span>Motor ativo — <span id="statusMsg">aguardando dados obrigatórios</span></span><span id="statusTime">v0</span></div>
+
+  <div style="display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;">
+    <button id="btnSalvarConfig" style="font-family:'JetBrains Mono',monospace; font-size:11.5px; padding:8px 14px; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:2px; cursor:pointer;">💾 Salvar configuração (.json)</button>
+    <div class="upload-box" id="boxCarregarConfig" style="padding:8px 14px; display:inline-flex; align-items:center; gap:8px; width:auto;" onclick="document.getElementById('inputConfig').click()">
+      <input type="file" id="inputConfig" accept=".json" style="display:none;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px;">📂 Carregar configuração (.json)</span>
+    </div>
+    <span id="statusConfig" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); align-self:center;"></span>
+  </div>
+  <div class="hint" style="margin:-10px 0 18px;">Isso salva só os campos preenchidos manualmente (seções 2 e 3) — o CNIS e a tabela de fatores continuam precisando ser reenviados a cada sessão, por segurança.</div>
   <div id="avisoSync" class="doclist" style="display:none; border-left-color:var(--loss); background:#F6E3E1;"></div>
 
   <div class="grid">
@@ -132,42 +142,46 @@
       <div class="field-row two">
         <div class="field">
           <label>Data de nascimento <span class="req">*</span></label>
-          <input type="date" id="nascimento" value="1970-07-20">
+          <input type="date" id="nascimento" value="">
         </div>
         <div class="field">
           <label>Sexo <span class="req">*</span></label>
-          <select id="sexo"><option value="M">Masculino</option><option value="F">Feminino</option></select>
+          <select id="sexo">
+            <option value="" selected>— selecione —</option>
+            <option value="M">Masculino</option>
+            <option value="F">Feminino</option>
+          </select>
         </div>
       </div>
 
       <div class="field">
         <label>Data de referência do tempo de contribuição informado abaixo <span class="req">*</span></label>
-        <input type="date" id="dataRef" value="2026-07-01">
+        <input type="date" id="dataRef" value="">
         <div class="hint">Use a data do seu extrato/simulador mais recente do Meu INSS.</div>
       </div>
 
       <div class="field">
         <label>Tempo de contribuição na data de referência <span class="req">*</span></label>
         <div class="field-row">
-          <input type="number" id="tempoAnos" value="33" min="0" placeholder="anos">
-          <input type="number" id="tempoMeses" value="8" min="0" max="11" placeholder="meses">
-          <input type="number" id="tempoDias" value="29" min="0" max="30" placeholder="dias">
+          <input type="number" id="tempoAnos" value="" min="0" placeholder="anos">
+          <input type="number" id="tempoMeses" value="" min="0" max="11" placeholder="meses">
+          <input type="number" id="tempoDias" value="" min="0" max="30" placeholder="dias">
         </div>
       </div>
 
       <div class="field">
         <label>Tempo de contribuição em 13/11/2019 (para os pedágios) <span class="req">*</span></label>
         <div class="field-row">
-          <input type="number" id="tempo2019Anos" value="24" min="0" placeholder="anos">
-          <input type="number" id="tempo2019Meses" value="0" min="0" max="11" placeholder="meses">
-          <input type="number" id="tempo2019Dias" value="0" min="0" max="30" placeholder="dias">
+          <input type="number" id="tempo2019Anos" value="" min="0" placeholder="anos">
+          <input type="number" id="tempo2019Meses" value="" min="0" max="11" placeholder="meses">
+          <input type="number" id="tempo2019Dias" value="" min="0" max="30" placeholder="dias">
         </div>
         <div class="hint">Se não souber com precisão, estime — os pedágios de 50%/100% só se aplicam a quem já contribuía antes da reforma.</div>
       </div>
 
       <div class="field">
         <label>Carência atual (meses) <span class="req">*</span></label>
-        <input type="number" id="carencia" value="400" min="0">
+        <input type="number" id="carencia" value="" min="0" placeholder="ex: 400">
       </div>
     </div>
 
@@ -178,11 +192,15 @@
       <div class="field">
         <label>Teto do RGPS vigente <span class="req">*</span></label>
         <input type="number" id="teto" value="8475.55" step="0.01">
+        <div class="hint">
+          Valor de referência: R$ 8.475,55 (vigente desde jan/2026, Portaria Interministerial MPS/MF nº 13/2026).
+          <a href="https://www.gov.br/inss/pt-br/direitos-e-deveres/inscricao-e-contribuicao/tabela-de-contribuicao-mensal" target="_blank" rel="noopener" style="color:var(--brass); font-weight:600;">↳ Conferir teto, salário mínimo e alíquotas atualizados no gov.br/inss →</a>
+        </div>
       </div>
 
       <div class="field">
-        <label>Salário-base para os meses futuros <span class="rangeval" id="lblSalario">R$ 8.475,55</span></label>
-        <input type="range" id="salarioFuturo" min="1621" max="8475.55" step="1" value="8475.55">
+        <label>Salário-base para os meses futuros <span class="req">*</span></label>
+        <input type="number" id="salarioFuturo" min="1621" max="8475.55" step="0.01" value="8475.55">
         <div class="hint">Usado do último dado real do CNIS até a data de transição abaixo (ou até a DER, se não houver transição).</div>
       </div>
 
@@ -193,8 +211,8 @@
       </div>
 
       <div class="field">
-        <label>Salário-base APÓS a transição <span class="rangeval" id="lblSalarioDepois">R$ 1.621,00</span></label>
-        <input type="range" id="salarioDepois" min="1621" max="8475.55" step="1" value="1621">
+        <label>Salário-base APÓS a transição</label>
+        <input type="number" id="salarioDepois" min="1621" max="8475.55" step="0.01" value="1621">
       </div>
 
       <div class="field">
@@ -236,6 +254,17 @@
     <!-- ===================== 5. INVESTIMENTO DA DIFERENÇA ===================== -->
     <div class="panel full">
       <h2><span>5 · Investindo a diferença de contribuição <span style="color:var(--ink-soft); font-weight:400; text-transform:none;">(requer data de transição preenchida)</span></span><span class="step-num">STEP 05</span></h2>
+
+      <div class="field" style="max-width:320px;">
+        <label>Alíquota de contribuição (contribuinte individual/facultativo)</label>
+        <select id="aliquotaContrib">
+          <option value="0.20">20% — Plano Normal (conta tempo integral, RMI proporcional)</option>
+          <option value="0.11">11% — Plano Simplificado (só sobre o salário mínimo, RMI limitada ao mínimo)</option>
+        </select>
+        <div class="hint">
+          <a href="https://www.gov.br/inss/pt-br/direitos-e-deveres/inscricao-e-contribuicao/tabela-de-contribuicao-mensal" target="_blank" rel="noopener" style="color:var(--brass); font-weight:600;">↳ Conferir alíquotas e faixas oficiais no gov.br/inss →</a>
+        </div>
+      </div>
 
       <div class="field" style="max-width:320px;">
         <label>Taxa de retorno REAL (acima da inflação), ao ano <span class="rangeval" id="lblTaxa">6,0%</span></label>
@@ -672,9 +701,9 @@ const FATORES_EMBUTIDOS = [
 ];
 
 const state = {
-  cnis: [],           // [{competencia: Date, remuneracao: Number}]
-  fatores: new Map(), // "AAAA-MM" -> fator
-  calcVersion: 0       // contador de recálculo — prova de que não há memória estática
+  cnis: [],            // [{competencia: Date, remuneracao: Number}]
+  fatores: new Map(),  // "AAAA-MM" -> fator
+  calcVersion: 0        // contador de recálculo — prova de que não há memória estática
 };
 
 function carregarFatoresEmbutidos(){
@@ -1065,10 +1094,24 @@ function recalculateAll(){
   state.calcVersion++;
   const inputs = lerInputs();
 
-  document.getElementById("lblSalario").textContent =
-    inputs.salarioFuturo.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  document.getElementById("lblSalarioDepois").textContent =
-    inputs.salarioDepois.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  // VALIDAÇÃO: campos obrigatórios em branco não devem gerar cálculo (nem erro) —
+  // apenas avisa e interrompe aqui, mostrando o motor como "aguardando dados".
+  const nascInvalido = isNaN(inputs.nascimento.getTime());
+  const refInvalida = isNaN(inputs.dataRef.getTime());
+  const semSexo = !inputs.sexo;
+  const semTempo = document.getElementById("tempoAnos").value==="" && document.getElementById("tempoMeses").value==="";
+  const semCarencia = document.getElementById("carencia").value==="";
+
+  if(nascInvalido || refInvalida || semSexo || semTempo || semCarencia){
+    document.getElementById("tbodyResultado").innerHTML =
+      `<tr><td colspan="7" style="color:var(--ink-soft); font-size:12.5px;">Preencha os campos obrigatórios (*) na seção 2 para o motor calcular as projeções.</td></tr>`;
+    document.getElementById("obsArea").innerHTML = "";
+    document.getElementById("tbodyInvestimento").innerHTML = "";
+    document.getElementById("statusMsg").textContent = "aguardando dados obrigatórios";
+    document.getElementById("statusTime").textContent = `v${state.calcVersion} · ${new Date().toLocaleTimeString('pt-BR')}`;
+    renderInconsistencias(); // independe dos campos demográficos, roda de qualquer forma
+    return;
+  }
 
   const dataTransicao = inputs.dataTransicaoStr
     ? new Date(inputs.dataTransicaoStr + "T00:00:00Z")
@@ -1310,6 +1353,48 @@ function renderInconsistencias(){
   area.innerHTML = html;
 }
 
+/* ---------- SALVAR/CARREGAR CONFIGURAÇÃO (persistência via arquivo, sem localStorage) ---------- */
+const CAMPOS_CONFIG = ["nascimento","sexo","dataRef","tempoAnos","tempoMeses","tempoDias",
+  "tempo2019Anos","tempo2019Meses","tempo2019Dias","carencia","teto",
+  "salarioFuturo","dataTransicao","salarioDepois","expSobrevida","horizonte",
+  "taxaRetorno","aliquotaContrib"];
+
+function salvarConfiguracao(){
+  const config = {};
+  CAMPOS_CONFIG.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) config[id] = el.value;
+  });
+  const blob = new Blob([JSON.stringify(config, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "configuracao_simulador_previdenciario.json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  document.getElementById("statusConfig").textContent = "✓ configuração salva";
+}
+
+function carregarConfiguracao(file){
+  const status = document.getElementById("statusConfig");
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const config = JSON.parse(e.target.result);
+      CAMPOS_CONFIG.forEach(id => {
+        if(config[id] !== undefined){
+          const el = document.getElementById(id);
+          if(el) el.value = config[id];
+        }
+      });
+      status.textContent = "✓ configuração carregada";
+      recalculateAll();
+    }catch(err){
+      status.textContent = "✗ arquivo de configuração inválido: " + err.message;
+    }
+  };
+  reader.readAsText(file);
+}
+
 /* ---------- 8. UI ---------- */
 
 
@@ -1382,7 +1467,8 @@ function renderInvestimento(resultados, inputs, dataTransicao){
     return;
   }
 
-  const diferencaContribuicao = Math.max(0, (inputs.salarioFuturo - inputs.salarioDepois) * 0.20);
+  const aliquota = parseFloat(document.getElementById("aliquotaContrib").value);
+  const diferencaContribuicao = Math.max(0, (inputs.salarioFuturo - inputs.salarioDepois) * aliquota);
   const taxaMensal = Math.pow(1+taxaAnual, 1/12) - 1;
 
   let html = "";
@@ -1432,10 +1518,14 @@ document.getElementById("inputCnis").addEventListener("change", e => {
 document.getElementById("inputFatores").addEventListener("change", e => {
   if(e.target.files[0]) processarFatores(e.target.files[0]);
 });
+document.getElementById("btnSalvarConfig").addEventListener("click", salvarConfiguracao);
+document.getElementById("inputConfig").addEventListener("change", e => {
+  if(e.target.files[0]) carregarConfiguracao(e.target.files[0]);
+});
 
 ["nascimento","sexo","dataRef","tempoAnos","tempoMeses","tempoDias",
  "tempo2019Anos","tempo2019Meses","tempo2019Dias","carencia","teto",
- "salarioFuturo","dataTransicao","salarioDepois","expSobrevida","horizonte","taxaRetorno"].forEach(id => {
+ "salarioFuturo","dataTransicao","salarioDepois","expSobrevida","horizonte","taxaRetorno","aliquotaContrib"].forEach(id => {
   document.getElementById(id).addEventListener("input", recalculateAll);
   document.getElementById(id).addEventListener("change", recalculateAll);
 });
