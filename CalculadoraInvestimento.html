@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Aposentadoria</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16241D;
+    --paper:#F4F1E6;
+    --paper-2:#ECE7D6;
+    --forest:#1F4032;
+    --forest-2:#2A5140;
+    --moss:#5C7A65;
+    --gold:#B8912F;
+    --gold-soft:#E4D6A7;
+    --clay:#A8452F;
+    --line:#D8D0B8;
+    --white:#FFFDF7;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:36px 20px 80px;}
+  .masthead{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--forest);
+    padding-bottom:18px;margin-bottom:28px;flex-wrap:wrap;gap:12px;
+  }
+  .masthead h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:clamp(28px,4vw,42px);
+    margin:0;
+    letter-spacing:-0.01em;
+    color:var(--forest);
+  }
+  .masthead .sub{
+    font-size:12px;text-transform:uppercase;letter-spacing:0.12em;
+    color:var(--moss);font-weight:600;
+  }
+  .masthead .date{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--moss);
+    text-align:right;
+  }
+  .grid{
+    display:grid;grid-template-columns:340px 1fr;gap:28px;
+    align-items:start;
+  }
+  @media (max-width:860px){ .grid{grid-template-columns:1fr;} }
+
+  .card{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:24px;
+  }
+  .card + .card{margin-top:24px;}
+  .card h2{
+    font-family:'Fraunces',serif;
+    font-size:18px;font-weight:600;margin:0 0 4px;color:var(--forest);
+  }
+  .card .desc{font-size:12.5px;color:var(--moss);margin:0 0 18px;}
+
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;font-size:12px;font-weight:600;
+    text-transform:uppercase;letter-spacing:0.06em;color:var(--forest);margin-bottom:6px;
+  }
+  .field .hint{font-size:11.5px;color:var(--moss);margin-top:4px;}
+  .field input[type=number], .field input[type=range]{width:100%;}
+  input[type=number]{
+    font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;
+    padding:9px 10px;border:1.5px solid var(--line);border-radius:3px;
+    background:var(--paper);color:var(--ink);
+  }
+  input[type=number]:focus{outline:none;border-color:var(--gold);background:var(--white);}
+  input[type=range]{accent-color:var(--gold);}
+
+  .money-input{position:relative;}
+  .money-input span{
+    position:absolute;left:10px;top:50%;transform:translateY(-50%);
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--moss);
+  }
+  .money-input input{padding-left:34px;}
+
+  .twofield{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  .derived-row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:10px 0;border-bottom:1px dashed var(--line);
+  }
+  .derived-row:last-child{border-bottom:none;}
+  .derived-row .lbl{font-size:12.5px;color:var(--moss);}
+  .derived-row .val{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--forest);}
+
+  .rate-tag{
+    display:inline-flex;gap:8px;margin-top:8px;font-size:11.5px;font-family:'IBM Plex Mono',monospace;
+  }
+  .rate-tag span{padding:3px 8px;border-radius:20px;background:var(--paper-2);color:var(--moss);}
+  .rate-tag span.mid{background:var(--gold-soft);color:var(--forest);font-weight:600;}
+
+  .btn{
+    width:100%;padding:14px;background:var(--forest);color:var(--white);
+    border:none;border-radius:3px;font-weight:600;font-size:14px;letter-spacing:0.02em;
+    cursor:pointer;font-family:'Inter',sans-serif;transition:background .15s ease;
+  }
+  .btn:hover{background:var(--forest-2);}
+
+  .results-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .results-head h2{margin:0;}
+  .goal-badge{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;padding:6px 12px;border-radius:20px;
+    border:1px solid var(--line);color:var(--moss);
+  }
+  .goal-badge.ok{border-color:var(--forest);color:var(--forest);background:#EAF1EC;}
+  .goal-badge.no{border-color:var(--clay);color:var(--clay);background:#FBEDE9;}
+
+  .scenarios{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;}
+  @media (max-width:760px){ .scenarios{grid-template-columns:1fr;} }
+  .scen{
+    border:1.5px solid var(--line);border-radius:4px;padding:16px;position:relative;
+    background:var(--paper);
+  }
+  .scen.mid{border-color:var(--gold);background:var(--white);}
+  .scen .tag{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;
+    color:var(--moss);
+  }
+  .scen.mid .tag{color:var(--gold);}
+  .scen .rate{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);margin:2px 0 12px;}
+  .scen .line{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-top:1px solid var(--line);}
+  .scen .line:first-of-type{border-top:none;}
+  .scen .line .k{color:var(--moss);}
+  .scen .line .v{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .scen .headline{font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:var(--forest);margin:2px 0 10px;}
+
+  .chart-card{padding:20px 20px 8px;}
+  .chart-legend{display:flex;gap:18px;font-size:12px;color:var(--moss);margin-bottom:6px;flex-wrap:wrap;}
+  .chart-legend .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;}
+  canvas{max-width:100%;}
+
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px;}
+  th,td{text-align:right;padding:9px 8px;border-bottom:1px solid var(--line);}
+  th:first-child,td:first-child{text-align:left;}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--moss);font-weight:600;}
+  td{font-family:'IBM Plex Mono',monospace;}
+  tr td:first-child{font-family:'Inter',sans-serif;font-weight:600;color:var(--forest);}
+
+  .foot-note{font-size:11.5px;color:var(--moss);margin-top:16px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <div class="sub">Sistema 3C — réplica funcional</div>
+      <h1>Simulador de Aposentadoria</h1>
+    </div>
+    <div class="date">Cenários: pessimista · esperado · otimista</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- SIDEBAR: INPUTS -->
+    <div>
+      <div class="card">
+        <h2>Tempo</h2>
+        <p class="desc">Editável diretamente ou calculado a partir das idades.</p>
+
+        <div class="twofield">
+          <div class="field">
+            <label>Idade atual</label>
+            <input type="number" id="idadeAtual" value="30" min="0" max="100">
+          </div>
+          <div class="field">
+            <label>Idade de aposentadoria</label>
+            <input type="number" id="idadeAposentadoria" value="65" min="0" max="110">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Expectativa de vida</label>
+          <input type="number" id="expectativaVida" value="85" min="0" max="120">
+          <div class="hint">Até que idade os recursos devem durar.</div>
+        </div>
+
+        <div class="field">
+          <label>Tempo até aposentadoria (anos)</label>
+          <input type="number" id="tempoAte" value="35" min="1" max="90" step="1">
+          <div class="hint">Editando aqui, ajusta a idade de aposentadoria.</div>
+        </div>
+
+        <div class="field">
+          <label>Tempo de aposentadoria (anos)</label>
+          <input type="number" id="tempoDuracao" value="20" min="1" max="70" step="1">
+          <div class="hint">Editando aqui, ajusta a expectativa de vida. No modo vitalício, define só até onde o gráfico é desenhado — o saldo não se esgota.</div>
+        </div>
+
+        <div class="field toggle-field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="vitalicia" style="width:auto;accent-color:var(--gold);">
+            Aposentadoria vitalícia
+          </label>
+          <div class="hint">Em vez de esgotar o patrimônio no "Tempo de aposentadoria", saca apenas o retorno acima da inflação — o principal nunca é consumido.</div>
+        </div>
+
+        <div class="field" id="inflacaoField" style="display:none;">
+          <label>Inflação esperada (a.a.)</label>
+          <input type="number" id="inflacao" value="4.5" min="0" max="20" step="0.1">
+          <div class="hint">Usada para calcular a taxa de retorno real (Fisher).</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Investimento</h2>
+
+        <div class="field">
+          <label>Aporte inicial</label>
+          <div class="money-input"><span>R$</span>
+            <input type="number" id="aporteInicial" value="10000" min="0" step="100">
+          </div>
+          <div class="hint">Quanto você tem investido hoje.</div>
+        </div>
+
+        <div class="field">
+          <label>Aporte mensal</label>
+          <div class="money-input"><span>R$</span>
+            <input type="number" id="aporteMensal" value="1000" min="0" step="50">
+          </div>
+          <div class="hint">Quanto você vai investir por mês.</div>
+        </div>
+
+        <div class="field">
+          <label>Rentabilidade esperada (a.a.)</label>
+          <input type="number" id="rentabilidade" value="10" min="1" max="30" step="0.1">
+          <div class="rate-tag">
+            <span>Pessimista -2pp</span>
+            <span class="mid">Esperado</span>
+            <span>Otimista +2pp</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Renda mensal desejada</label>
+          <div class="money-input"><span>R$</span>
+            <input type="number" id="rendaDesejada" value="5000" min="0" step="100">
+          </div>
+          <div class="hint">Valor líquido, em reais de hoje.</div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="calcular()">Calcular simulação</button>
+    </div>
+
+    <!-- MAIN: RESULTS -->
+    <div>
+      <div class="card">
+        <div class="results-head">
+          <h2>Resultado da simulação</h2>
+          <span id="goalBadge" class="goal-badge">aguardando cálculo</span>
+        </div>
+
+        <div class="scenarios" id="scenarios"></div>
+
+        <div class="foot-note" id="footNote"></div>
+      </div>
+
+      <div class="card chart-card">
+        <h2>Evolução do patrimônio</h2>
+        <p class="desc">Linha sólida: fase de acumulação (com aportes). Linha tracejada: fase de aposentadoria (com saques).</p>
+        <div class="chart-legend">
+          <span><span class="dot" style="background:#A8452F"></span>Pessimista</span>
+          <span><span class="dot" style="background:#B8912F"></span>Esperado</span>
+          <span><span class="dot" style="background:#5C7A65"></span>Otimista</span>
+        </div>
+        <canvas id="chart" height="110"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Detalhamento dos investimentos</h2>
+        <table>
+          <thead>
+            <tr><th>Cenário</th><th>Aportes totais</th><th>Rendimentos</th><th>Patrimônio final</th><th>Rentab. total</th></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="foot-note">
+          Imposto de Renda estimado pela tabela regressiva (alíquota mínima de 15% a.a. para prazos acima de 24 meses,
+          aplicada sobre a parcela de rendimento de cada saque). Simulação educacional — não constitui recomendação de investimento.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let chartInstance = null;
+let syncing = false;
+
+// ---- keep ages <-> tempo fields in sync ----
+function fromAges(){
+  if(syncing) return;
+  syncing = true;
+  const atual = parseFloat($('idadeAtual').value)||0;
+  const aposent = parseFloat($('idadeAposentadoria').value)||0;
+  const expect = parseFloat($('expectativaVida').value)||0;
+  $('tempoAte').value = Math.max(1, aposent - atual);
+  $('tempoDuracao').value = Math.max(1, expect - aposent);
+  syncing = false;
+}
+function fromTempoAte(){
+  if(syncing) return;
+  syncing = true;
+  const atual = parseFloat($('idadeAtual').value)||0;
+  const t = parseFloat($('tempoAte').value)||0;
+  $('idadeAposentadoria').value = atual + t;
+  const dur = parseFloat($('tempoDuracao').value)||0;
+  $('expectativaVida').value = atual + t + dur;
+  syncing = false;
+}
+function fromTempoDuracao(){
+  if(syncing) return;
+  syncing = true;
+  const aposent = parseFloat($('idadeAposentadoria').value)||0;
+  const dur = parseFloat($('tempoDuracao').value)||0;
+  $('expectativaVida').value = aposent + dur;
+  syncing = false;
+}
+function fromIdadeAtual(){
+  if(syncing) return;
+  syncing = true;
+  const atual = parseFloat($('idadeAtual').value)||0;
+  const t = parseFloat($('tempoAte').value)||0;
+  const dur = parseFloat($('tempoDuracao').value)||0;
+  $('idadeAposentadoria').value = atual + t;
+  $('expectativaVida').value = atual + t + dur;
+  syncing = false;
+}
+
+$('idadeAtual').addEventListener('input', fromIdadeAtual);
+$('idadeAposentadoria').addEventListener('input', fromAges);
+$('expectativaVida').addEventListener('input', fromAges);
+$('tempoAte').addEventListener('input', fromTempoAte);
+$('tempoDuracao').addEventListener('input', fromTempoDuracao);
+$('vitalicia').addEventListener('change', () => {
+  $('inflacaoField').style.display = $('vitalicia').checked ? 'block' : 'none';
+  calcular();
+});
+$('inflacao').addEventListener('input', () => { if($('vitalicia').checked) calcular(); });
+
+// ---- formatting ----
+const fmtBRL = v => v.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+const fmtPct = v => v.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+
+// ---- core math ----
+function simulate(annualRate, initial, monthly, monthsAccum, monthsRetire, vitalicia, inflacaoAnual){
+  const r = Math.pow(1+annualRate, 1/12) - 1;
+
+  // accumulation phase, month by month (for chart)
+  const accumSeries = [];
+  let balance = initial;
+  accumSeries.push(balance);
+  for(let m=1; m<=monthsAccum; m++){
+    balance = balance*(1+r) + monthly;
+    accumSeries.push(balance);
+  }
+  const patrimonioFinal = balance;
+  const aportesTotais = initial + monthly*monthsAccum;
+  const rendimentos = patrimonioFinal - aportesTotais;
+  const rentabTotal = aportesTotais>0 ? (rendimentos/aportesTotais)*100 : 0;
+
+  let rendaBruta, retireSeries, aliquota, gainFraction;
+
+  if(vitalicia){
+    // perpetuity: withdraw only the real return above inflation, principal untouched
+    const taxaRealAnual = (1+annualRate)/(1+inflacaoAnual) - 1;
+    const rReal = Math.pow(1+Math.max(taxaRealAnual,0), 1/12) - 1;
+    rendaBruta = patrimonioFinal * rReal;
+    // principal is preserved in real terms -> flat line (in today's reais) for the chart
+    retireSeries = [];
+    for(let m=0;m<=monthsRetire;m++) retireSeries.push(patrimonioFinal);
+    // the whole withdrawal is real yield, so it's fully taxable at the long-term rate
+    gainFraction = 1;
+    aliquota = 0.15;
+  } else {
+    // retirement phase: sustainable withdrawal that depletes corpus exactly at end
+    if(monthsRetire>0){
+      rendaBruta = r>0 ? patrimonioFinal * r / (1-Math.pow(1+r,-monthsRetire)) : patrimonioFinal/monthsRetire;
+    } else rendaBruta = 0;
+
+    retireSeries = [];
+    let bal2 = patrimonioFinal;
+    retireSeries.push(bal2);
+    for(let m=1;m<=monthsRetire;m++){
+      bal2 = bal2*(1+r) - rendaBruta;
+      if(bal2<0) bal2=0;
+      retireSeries.push(bal2);
+    }
+    // IR: regressive table, long-term horizon -> 15% on the gain portion of each withdrawal
+    gainFraction = patrimonioFinal>0 ? Math.max(0, rendimentos/patrimonioFinal) : 0;
+    aliquota = 0.15;
+  }
+
+  const impostoMensal = rendaBruta * gainFraction * aliquota;
+  const rendaLiquida = rendaBruta - impostoMensal;
+
+  return {
+    accumSeries, retireSeries, patrimonioFinal, aportesTotais, rendimentos, rentabTotal,
+    rendaBruta, impostoMensal, aliquota, rendaLiquida
+  };
+}
+
+function calcular(){
+  const initial = parseFloat($('aporteInicial').value)||0;
+  const monthly = parseFloat($('aporteMensal').value)||0;
+  const rateMid = parseFloat($('rentabilidade').value)||10;
+  const desiredIncome = parseFloat($('rendaDesejada').value)||0;
+  const tempoAte = Math.max(1, parseFloat($('tempoAte').value)||1);
+  const tempoDur = Math.max(1, parseFloat($('tempoDuracao').value)||1);
+  const monthsAccum = Math.round(tempoAte*12);
+  const monthsRetire = Math.round(tempoDur*12);
+  const vitalicia = $('vitalicia').checked;
+  const inflacaoAnual = (parseFloat($('inflacao').value)||0)/100;
+
+  const scenarios = [
+    {key:'pessimista', label:'Cenário Pessimista', rate:(rateMid-2)/100, color:'#A8452F'},
+    {key:'esperado', label:'Cenário Esperado', rate:rateMid/100, color:'#B8912F', mid:true},
+    {key:'otimista', label:'Cenário Otimista', rate:(rateMid+2)/100, color:'#5C7A65'},
+  ];
+
+  const results = scenarios.map(s => ({...s, ...simulate(Math.max(0.001,s.rate), initial, monthly, monthsAccum, monthsRetire, vitalicia, inflacaoAnual)}));
+
+  // scenario cards
+  const scenEl = $('scenarios');
+  scenEl.innerHTML = results.map(r => `
+    <div class="scen ${r.mid?'mid':''}">
+      <div class="tag">${r.label}</div>
+      <div class="rate">Rentabilidade: ${fmtPct(r.rate*100)} a.a.</div>
+      <div class="headline">${fmtBRL(r.patrimonioFinal)}</div>
+      <div class="line"><span class="k">Renda mensal bruta</span><span class="v">${fmtBRL(r.rendaBruta)}</span></div>
+      <div class="line"><span class="k">Imposto de renda</span><span class="v">${fmtBRL(r.impostoMensal)} (${(r.aliquota*100).toFixed(0)}%)</span></div>
+      <div class="line"><span class="k">Renda mensal líquida</span><span class="v">${fmtBRL(r.rendaLiquida)}</span></div>
+    </div>
+  `).join('');
+
+  // goal badge, based on "esperado"
+  const mid = results.find(r=>r.mid);
+  const badge = $('goalBadge');
+  if(mid.rendaLiquida >= desiredIncome){
+    badge.textContent = `Meta atingida no cenário esperado (+${fmtBRL(mid.rendaLiquida-desiredIncome)}/mês)`;
+    badge.className = 'goal-badge ok';
+  } else {
+    badge.textContent = `Faltam ${fmtBRL(desiredIncome-mid.rendaLiquida)}/mês para a meta no cenário esperado`;
+    badge.className = 'goal-badge no';
+  }
+
+  const modoTexto = vitalicia
+    ? `Modo vitalício: a renda mensal é apenas o retorno acima da inflação (${fmtPct(inflacaoAnual*100)} a.a.) — o principal de ${fmtBRL(results.find(r=>r.mid).patrimonioFinal)} nunca é consumido.`
+    : `Modo por prazo: a renda mensal esgota todo o patrimônio acumulado, chegando a R$ 0 exatamente ao fim dos ${tempoDur} anos de aposentadoria.`;
+  $('footNote').textContent = `Simulação para ${tempoAte} anos de acumulação e ${tempoDur} anos de aposentadoria, com aporte inicial de ${fmtBRL(initial)} e aportes mensais de ${fmtBRL(monthly)}. ${modoTexto}`;
+
+  // table
+  $('tableBody').innerHTML = results.map(r => `
+    <tr>
+      <td>${r.label.replace('Cenário ','')}</td>
+      <td>${fmtBRL(r.aportesTotais)}</td>
+      <td>${fmtBRL(r.rendimentos)}</td>
+      <td>${fmtBRL(r.patrimonioFinal)}</td>
+      <td>${fmtPct(r.rentabTotal)}</td>
+    </tr>
+  `).join('');
+
+  // chart
+  const labels = [];
+  for(let y=0;y<=tempoAte+tempoDur;y++) labels.push(`Ano ${y}`);
+
+  const buildYearly = (accum, retire) => {
+    const out = [];
+    for(let y=0;y<=tempoAte;y++) out.push(accum[Math.min(y*12, accum.length-1)]);
+    for(let y=1;y<=tempoDur;y++) out.push(retire[Math.min(y*12, retire.length-1)]);
+    return out;
+  };
+
+  const datasets = results.map(r => {
+    const yearly = buildYearly(r.accumSeries, r.retireSeries);
+    const accumPart = yearly.slice(0, tempoAte+1);
+    const retirePart = yearly.slice(tempoAte);
+    return [
+      {
+        label: r.label + ' (acumulação)',
+        data: yearly.map((v,i)=> i<=tempoAte ? v : null),
+        borderColor: r.color, backgroundColor:'transparent',
+        borderWidth: r.mid?3:2, pointRadius:0, tension:0.15
+      },
+      {
+        label: r.label + ' (aposentadoria)',
+        data: yearly.map((v,i)=> i>=tempoAte ? v : null),
+        borderColor: r.color, backgroundColor:'transparent',
+        borderDash:[6,4], borderWidth: r.mid?3:2, pointRadius:0, tension:0.15
+      }
+    ];
+  }).flat();
+
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart($('chart'), {
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{ label: ctx => ctx.dataset.label + ': ' + fmtBRL(ctx.parsed.y) }
+        }
+      },
+      scales:{
+        y:{ ticks:{ callback: v => fmtBRL(v) }, grid:{color:'#D8D0B8'} },
+        x:{ grid:{display:false}, ticks:{ maxTicksLimit:12 } }
+      }
+    }
+  });
+}
+
+// initial run
+calcular();
+</script>
+</body>
+</html>
